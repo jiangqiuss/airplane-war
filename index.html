@@ -153,6 +153,7 @@ let evtChoices,currentEvt;
 let totalUpgCount;
 let gamePhase='idle'; // 'idle','fighting','upgrading','event'
 let phaseTimer=0;
+let stuckTimer=0; // Safety: detect if stuck in any state too long
 
 function initPlayer(){
   const sh=SHIPS.find(s=>s.id===sv.sel)||SHIPS[0];
@@ -906,10 +907,24 @@ function drwOver(){
 // ==================== MAIN LOOP ====================
 function frame(){
   gt++;updStars();updParts();updFloats();
-  if(state===ST.PLAY){
+
+  // Game logic based on gamePhase
+  if(gamePhase==='fighting'){
     updPlayer();updEnemies();updBullets();checkContact();updWaves();
     if(comboT>0){comboT--;if(comboT<=0)comboN=0}
     for(let i=pickups.length-1;i>=0;i--){const pk=pickups[i];pk.life--;pk.y+=pk.vy*.5;if(pk.life<=0||pk.y>H+20)pickups.splice(i,1)}
+  }
+
+  // Stuck detection: if in upgrading/event state too long, force advance
+  if(gamePhase==='upgrading'||gamePhase==='event'){
+    stuckTimer++;
+    if(stuckTimer>300){ // 5 seconds at 60fps
+      stuckTimer=0;
+      if(gamePhase==='upgrading'){selUpg(upgChoices[0]||UPG[0])}
+      else{startNextWave()}
+    }
+  }else{
+    stuckTimer=0;
   }
 
   // RENDER
@@ -923,9 +938,13 @@ function frame(){
     case ST.SHIP:drwShipSelect();break;
     case ST.SHOP:drwShop();break;
     case ST.BOARD:drwBoard();break;
-    case ST.PLAY:drwPickups();drwBullets();drwEnemies();drwPlayer();drwParts();drwFloats();drwAnnounce();drwHUD();break;
-    case ST.UPG:drwPickups();drwBullets();drwEnemies();drwPlayer();drwParts();drwFloats();drwAnnounce();drwHUD();drwUpgScreen();break;
-    case ST.EVENT:drwPickups();drwBullets();drwEnemies();drwPlayer();drwParts();drwFloats();drwAnnounce();drwHUD();drwEventScreen();break;
+    case ST.PLAY:
+    case ST.UPG:
+    case ST.EVENT:
+      drwPickups();drwBullets();drwEnemies();drwPlayer();drwParts();drwFloats();drwAnnounce();drwHUD();
+      if(gamePhase==='upgrading')drwUpgScreen();
+      if(gamePhase==='event')drwEventScreen();
+      break;
     case ST.OVER:drwParts();drwOver();break;
   }
   if(shaked)X.restore();
