@@ -146,7 +146,7 @@ load();
 // ==================== GAME STATE ====================
 const ST={MENU:0,SHIP:1,SHOP:2,PLAY:3,UPG:4,OVER:5,BOARD:6,EVENT:7};
 let state=ST.MENU,gt=0;
-let P,enemies,eBul,pBul,pickups,wave,waveList,waveTmr,killCnt,coinGot,runCoins,waveStarted;
+let P,enemies,eBul,pBul,pickups,wave,waveList,waveTmr,killCnt,coinGot,runCoins,waveCleared;
 let boss,bossOn,upgChoices,comboN,comboT,maxCombo;
 let evtChoices,currentEvt;
 let totalUpgCount;
@@ -179,8 +179,9 @@ function initGame(){
   initPlayer();enemies=[];eBul=[];pBul=[];pickups=[];parts=[];floats=[];
   wave=0;waveList=[];waveTmr=0;killCnt=0;coinGot=0;boss=null;bossOn=false;
   comboN=0;comboT=0;maxCombo=0;runCoins=0;totalUpgCount=0;
-  waveStarted=false;sv.runs++;store();
-  spawnWave();waveStarted=true;
+  waveCleared=false;sv.runs++;store();
+  // Spawn first wave immediately
+  spawnWave();
 }
 
 // ==================== SPAWNING ====================
@@ -262,7 +263,7 @@ function selEvent(e){
   e.fx();
   ftext(W/2,H/2,e.icon+' '+e.name,'#ff0',20);
   sfx('upg');
-  state=ST.PLAY;spawnWave();waveStarted=true;
+  state=ST.PLAY;waveCleared=false;spawnWave();
 }
 
 // ==================== PLAYER ====================
@@ -466,9 +467,9 @@ function updWaves(){
     for(const w of waveList){if(!w.done&&--w.delay<=0){w.done=true;spawnE(w.type)}}
     waveList=waveList.filter(w=>!w.done);
   }
-  // Only offer upgrade after a wave has been fully cleared
-  if(waveStarted&&waveList.length===0&&enemies.length===0){
-    waveStarted=false;
+  // Only offer upgrade after a wave has been fully cleared (not on first frame)
+  if(!waveCleared&&wave>0&&waveList.length===0&&enemies.length===0){
+    waveCleared=true;
     offerUpg();
   }
 }
@@ -521,7 +522,7 @@ function recalc(){
   P.hp=Math.min(P.hp,P.maxHP);P.sh=Math.min(P.sh,P.maxSh);
 }
 
-function startNext(){state=ST.PLAY;comboN=0;spawnWave();waveStarted=true;}
+function startNext(){state=ST.PLAY;comboN=0;waveCleared=false;spawnWave();}
 
 // ==================== DRAWING ====================
 function drwShip(x,y,w,h,col,isP){
