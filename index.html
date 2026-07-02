@@ -497,12 +497,19 @@ function offerUpg(){
   if(!avail.length){endUpgrade();return}
   upgChoices=[];const used=new Set();
   for(let i=0;i<cnt&&i<avail.length;i++){
-    let ch,at=0;
-    do{const wts=avail.map(u=>used.has(u.id)?0:ws[u.r]*u.w);ch=wPick(avail,wts);at++}while(used.has(ch.id)&&at<50);
-    if(!used.has(ch.id)){used.add(ch.id);upgChoices.push(ch)}
+    let ch=null,at=0;
+    do{
+      const wts=avail.map(u=>used.has(u.id)?0:ws[u.r]*u.w);
+      const total=wts.reduce((a,b)=>a+b,0);
+      if(total<=0)break; // All used, break
+      ch=wPick(avail,wts);at++;
+    }while(used.has(ch.id)&&at<50);
+    if(ch&&!used.has(ch.id)){used.add(ch.id);upgChoices.push(ch)}
   }
   // Ensure at least one choice
-  if(upgChoices.length===0){upgChoices.push(avail[0])}
+  if(upgChoices.length===0&&avail.length>0){upgChoices.push(avail[0])}
+  // If still no choices, skip
+  if(upgChoices.length===0){endUpgrade();return}
   sfx('upg');
 }
 
@@ -728,6 +735,13 @@ function drwUpgScreen(){
   // Debug
   X.fillStyle='#0f0';X.font='10px "Courier New"';X.textAlign='center';
   X.fillText(`DEBUG: phase=${gamePhase} choices=${upgChoices?upgChoices.length:'null'} st=${stuckTimer}`,W/2,50);
+  // Safety: if no choices, show skip button
+  if(!upgChoices||upgChoices.length===0){
+    X.fillStyle='#fff';X.font='bold 20px "Courier New"';X.textAlign='center';
+    X.fillText('无可用强化',W/2,H/2-20);
+    drwBtn(W/2-60,H/2+20,120,40,'跳过 →','#0ef',()=>endUpgrade());
+    return;
+  }
   X.fillStyle='#fff';X.font='bold 24px "Courier New"';X.textAlign='center';X.fillText('选择强化',W/2,90);
   X.fillStyle='#888';X.font='12px "Courier New"';X.fillText(`波次 ${wave} 完成!  选择一项强化`,W/2,115);
   const cw=Math.min(130,Math.floor((W-40)/upgChoices.length)-10),ch=200,gap=10;
@@ -753,6 +767,8 @@ function drwUpgScreen(){
     lines.forEach((l,j)=>X.fillText(l,cx+cw/2,cy+128+j*14));
     if(hov&&M.click){selUpg(u);return}
   }
+  // Skip button at bottom
+  drwBtn(W/2-50,cy+ch+20,100,30,'跳过 →','#888',()=>endUpgrade(),12);
 }
 
 // ==================== EVENT SCREEN ====================
