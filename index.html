@@ -27,7 +27,7 @@ function sfx(name){const s={hit:[400,.08,'square',.04],crit:[800,.12,'sine',.06]
 
 // Input
 const K={};const M={x:0,y:0,click:false,down:false,dbl:false};
-onkeydown=e=>{K[e.code]=1;if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault()};
+onkeydown=e=>{K[e.code]=1;if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyW','KeyA','KeyS','KeyD','KeyE'].includes(e.code))e.preventDefault()};
 onkeyup=e=>K[e.code]=0;
 C.addEventListener('mousemove',e=>{const r=C.getBoundingClientRect();M.x=(e.clientX-r.left)*W/r.width;M.y=(e.clientY-r.top)*H/r.height});
 C.addEventListener('mousedown',e=>{initAudio();M.down=1;M.click=1;e.preventDefault()});
@@ -948,10 +948,10 @@ function frame(){
     for(let i=pickups.length-1;i>=0;i--){const pk=pickups[i];pk.life--;pk.y+=pk.vy*.5;if(pk.life<=0||pk.y>H+20)pickups.splice(i,1)}
   }
 
-  // Stuck detection: if in upgrading/event state too long, force advance
+  // Stuck detection: if in upgrading/event state too long, force advance (30 seconds)
   if(gamePhase==='upgrading'||gamePhase==='event'){
     stuckTimer++;
-    if(stuckTimer>180){ // 3 seconds at 60fps
+    if(stuckTimer>1800){ // 30 seconds at 60fps
       stuckTimer=0;
       endUpgrade();
     }
