@@ -183,7 +183,7 @@ function initGame(){
   initPlayer();enemies=[];eBul=[];pBul=[];pickups=[];parts=[];floats=[];
   wave=0;waveList=[];waveTmr=0;killCnt=0;coinGot=0;boss=null;bossOn=false;
   comboN=0;comboT=0;maxCombo=0;runCoins=0;totalUpgCount=0;
-  gamePhase='idle';phaseTimer=0;sv.runs++;store();
+  gamePhase='idle';phaseTimer=0;stuckTimer=0;sv.runs++;store();
   startNextWave();
 }
 
@@ -454,9 +454,10 @@ function collect(pk){
 }
 
 function gameOver(){
-  state=ST.OVER;sv.coins+=runCoins;sv.totalKills+=killCnt;
+  state=ST.OVER;gamePhase='idle';
+  sv.coins+=runCoins;runCoins=0;
+  sv.totalKills+=killCnt;
   if(wave>sv.bestW)sv.bestW=wave;if(killCnt>sv.bestK)sv.bestK=killCnt;
-  // Count upgrades
   totalUpgCount=Object.values(P.owned).reduce((a,b)=>a+b,0);
   addToBoard(wave,killCnt,runCoins,P.shipName,totalUpgCount);
   store();sfx('die');
@@ -948,15 +949,20 @@ function frame(){
     for(let i=pickups.length-1;i>=0;i--){const pk=pickups[i];pk.life--;pk.y+=pk.vy*.5;if(pk.life<=0||pk.y>H+20)pickups.splice(i,1)}
   }
 
-  // Stuck detection: if in upgrading/event state too long, force advance (30 seconds)
+  // Stuck detection: if in upgrading/event state too long, force advance (60 seconds)
   if(gamePhase==='upgrading'||gamePhase==='event'){
     stuckTimer++;
-    if(stuckTimer>1800){ // 30 seconds at 60fps
+    if(stuckTimer>3600){ // 60 seconds at 60fps
       stuckTimer=0;
       endUpgrade();
     }
   }else{
     stuckTimer=0;
+  }
+
+  // Auto-save coins every 10 seconds during gameplay
+  if(gamePhase==='fighting'&&gt%600===0){
+    sv.coins+=runCoins;runCoins=0;store();
   }
 
   // RENDER
