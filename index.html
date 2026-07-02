@@ -514,14 +514,22 @@ function offerUpg(){
 }
 
 function selUpg(u){
-  const lv=(P.owned[u.id]||0)+1;P.owned[u.id]=lv;recalc();totalUpgCount++;
-  ftext(W/2,H/2,u.icon+' '+u.name+' Lv'+lv,RCOL[u.r],18);
-  sfx('upg');endUpgrade();
+  try{
+    if(!u||!u.id){endUpgrade();return}
+    const lv=(P.owned[u.id]||0)+1;P.owned[u.id]=lv;recalc();totalUpgCount++;
+    ftext(W/2,H/2,u.icon+' '+u.name+' Lv'+lv,RCOL[u.r],18);
+    sfx('upg');
+  }catch(e){console.error('selUpg error:',e)}
+  endUpgrade();
 }
 
 function endUpgrade(){
-  state=ST.PLAY;
-  startNextWave();
+  try{
+    state=ST.PLAY;
+    gamePhase='fighting';
+    phaseTimer=0;stuckTimer=0;
+    startNextWave();
+  }catch(e){console.error('endUpgrade error:',e)}
 }
 
 function recalc(){
@@ -760,11 +768,7 @@ function drwUpgScreen(){
     if(lv>0){X.fillStyle='#888';X.font='10px "Courier New"';X.fillText(`Lv${lv} → Lv${lv+1}`,cx+cw/2,cy+108)}
     else{X.fillStyle='#4f4';X.font='bold 10px "Courier New"';X.fillText('★ NEW ★',cx+cw/2,cy+108)}
     X.fillStyle='#ccc';X.font='10px "Courier New"';
-    const desc=u.desc.replace('{v}',u.v(lv+1));
-    const lines=[];let line='';
-    for(const ch2 of desc){if(X.measureText(line+ch2).width>cw-12){lines.push(line);line=ch2}else line+=ch2}
-    lines.push(line);
-    lines.forEach((l,j)=>X.fillText(l,cx+cw/2,cy+128+j*14));
+    try{X.fillText(u.desc.replace('{v}',u.v(lv+1)),cx+cw/2,cy+128)}catch(e){}
     if(hov&&M.click){selUpg(u);return}
   }
   // Skip button at bottom
@@ -928,6 +932,7 @@ function drwOver(){
 
 // ==================== MAIN LOOP ====================
 function frame(){
+  try{
   gt++;updStars();updParts();updFloats();
 
   // Game logic based on gamePhase
@@ -940,10 +945,9 @@ function frame(){
   // Stuck detection: if in upgrading/event state too long, force advance
   if(gamePhase==='upgrading'||gamePhase==='event'){
     stuckTimer++;
-    if(stuckTimer>300){ // 5 seconds at 60fps
+    if(stuckTimer>180){ // 3 seconds at 60fps
       stuckTimer=0;
-      if(gamePhase==='upgrading'){selUpg(upgChoices[0]||UPG[0])}
-      else{startNextWave()}
+      endUpgrade();
     }
   }else{
     stuckTimer=0;
@@ -971,6 +975,12 @@ function frame(){
   }
   if(shaked)X.restore();
   M.click=0;M.dbl=0;
+  }catch(err){
+    // On error, force advance to prevent freeze
+    console.error('Game error:',err);
+    if(gamePhase==='upgrading'||gamePhase==='event'){endUpgrade()}
+    else if(gamePhase==='fighting'){offerUpg()}
+  }
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
