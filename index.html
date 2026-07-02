@@ -643,11 +643,17 @@ function drwEnemies(){
   }
 }
 
+function hexToRgba(hex,a){
+  let r=0,g=0,b_=0;
+  if(hex.length===4){r=parseInt(hex[1]+hex[1],16);g=parseInt(hex[2]+hex[2],16);b_=parseInt(hex[3]+hex[3],16);}
+  else if(hex.length===7){r=parseInt(hex[1]+hex[2],16);g=parseInt(hex[3]+hex[4],16);b_=parseInt(hex[5]+hex[6],16);}
+  return `rgba(${r},${g},${b_},${a})`;
+}
 function drwBoss(b){
   const col=b.hf>0?'#fff':b.color;
   // Body with gradient
   const bg=X.createRadialGradient(b.x,b.y,0,b.x,b.y,b.w);
-  bg.addColorStop(0,'#fff');bg.addColorStop(.4,col);bg.addColorStop(1,b.color+'66');
+  bg.addColorStop(0,'#fff');bg.addColorStop(.4,col);bg.addColorStop(1,hexToRgba(b.color,0.5));
   X.fillStyle=bg;X.beginPath();
   X.moveTo(b.x,b.y-b.h/2);X.lineTo(b.x-b.w/2,b.y);X.lineTo(b.x-b.w*.7,b.y+b.h/2);
   X.lineTo(b.x-b.w/4,b.y+b.h/3);X.lineTo(b.x,b.y+b.h/2);
