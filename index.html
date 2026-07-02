@@ -26,12 +26,13 @@ function beep(f,d,t='square',v=.03){if(!AC)return;try{const o=AC.createOscillato
 function sfx(name){const s={hit:[400,.08,'square',.04],crit:[800,.12,'sine',.06],die:[150,.25,'sawtooth',.05],coin:[1200,.06,'sine',.03],heal:[600,.15,'sine',.04],bomb:[80,.5,'sawtooth',.07],boss:[60,.6,'sawtooth',.08],wave:[500,.1,'sine',.03],upg:[700,.15,'sine',.04],menu:[300,.08,'sine',.02],combo:[900,.1,'sine',.05],shield:[1000,.1,'sine',.03]};const p=s[name];if(p)beep(p[0],p[1],p[2],p[3])}
 
 // Input
-const K={};const M={x:0,y:0,click:false,down:false};
+const K={};const M={x:0,y:0,click:false,down:false,dbl:false};
 onkeydown=e=>{K[e.code]=1;if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault()};
 onkeyup=e=>K[e.code]=0;
 C.addEventListener('mousemove',e=>{const r=C.getBoundingClientRect();M.x=(e.clientX-r.left)*W/r.width;M.y=(e.clientY-r.top)*H/r.height});
 C.addEventListener('mousedown',e=>{initAudio();M.down=1;M.click=1;e.preventDefault()});
 C.addEventListener('mouseup',()=>M.down=0);
+C.addEventListener('dblclick',e=>{initAudio();const r=C.getBoundingClientRect();M.x=(e.clientX-r.left)*W/r.width;M.y=(e.clientY-r.top)*H/r.height;M.dbl=1;e.preventDefault()});
 C.addEventListener('touchstart',e=>{initAudio();const t=e.touches[0],r=C.getBoundingClientRect();M.x=(t.clientX-r.left)*W/r.width;M.y=(t.clientY-r.top)*H/r.height;M.down=1;M.click=1;e.preventDefault()},{passive:false});
 C.addEventListener('touchmove',e=>{const t=e.touches[0],r=C.getBoundingClientRect();M.x=(t.clientX-r.left)*W/r.width;M.y=(t.clientY-r.top)*H/r.height;e.preventDefault()},{passive:false});
 C.addEventListener('touchend',()=>M.down=0);
@@ -815,7 +816,13 @@ function drwShipSelect(){
       if(owned){sv.sel=s.id;store();sfx('menu')}
       else if(sv.coins>=s.cost){sv.coins-=s.cost;sv.ships.push(s.id);sv.sel=s.id;store();sfx('coin');sfx('upg')}
     }
+    // Double-click on owned ship to start game directly
+    if(hov&&M.dbl&&owned){
+      sv.sel=s.id;store();
+      initGame();state=ST.PLAY;return;
+    }
   }
+  // Double-click on "出发" button area also starts
   drwBtn(W/2-60,H-55,120,40,'出  发!','#0ef',()=>{initGame();state=ST.PLAY});
   drwBtn(10,H-45,55,28,'返回','#888',()=>state=ST.MENU,sz=11);
 }
@@ -922,7 +929,7 @@ function frame(){
     case ST.OVER:drwParts();drwOver();break;
   }
   if(shaked)X.restore();
-  M.click=0;
+  M.click=0;M.dbl=0;
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
