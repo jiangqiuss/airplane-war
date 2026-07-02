@@ -46,13 +46,13 @@ function lerp(a,b,t){return a+(b-a)*t}
 // ==================== STARS ====================
 const stars=Array.from({length:150},()=>({x:rng(0,W),y:rng(0,H),s:rng(.3,2.5),v:rng(.2,1.8),c:rng(0,1)<.1?'#aaf':'#ccf'}));
 function updStars(){for(const s of stars){s.y+=s.v;if(s.y>H){s.y=0;s.x=rng(0,W)}}}
-function drwStars(){for(const s of stars){X.fillStyle=s.c;X.globalAlpha=s.s/3;X.fillRect(s.x,s.y,s.s,s.s)}X.globalAlpha=1}
+function drwStars(){for(const s of stars){X.fillStyle=s.c;X.globalAlpha=s.s/3;X.shadowColor=s.c;X.shadowBlur=s.s*2;X.beginPath();X.arc(s.x,s.y,s.s*.6,0,Math.PI*2);X.fill();}X.shadowBlur=0;X.globalAlpha=1}
 
 // ==================== PARTICLES ====================
 let parts=[];
 function emit(x,y,col,n=5,spd=3,life=25,sz=2){for(let i=0;i<n;i++){const a=rng(0,Math.PI*2),v=rng(.5,spd);parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life,ml:life,col,sz:rng(.5,sz)})}}
 function updParts(){for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.x+=p.vx;p.y+=p.vy;p.vy+=.03;if(--p.life<=0)parts.splice(i,1)}}
-function drwParts(){for(const p of parts){X.globalAlpha=p.life/p.ml;X.fillStyle=p.col;X.fillRect(p.x-p.sz/2,p.y-p.sz/2,p.sz,p.sz)}X.globalAlpha=1}
+function drwParts(){for(const p of parts){const a=p.life/p.ml;X.globalAlpha=a;X.fillStyle=p.col;X.shadowColor=p.col;X.shadowBlur=6;X.beginPath();X.arc(p.x,p.y,p.sz*a,0,Math.PI*2);X.fill();}X.shadowBlur=0;X.globalAlpha=1}
 
 // Screen shake
 let shakeAmt=0;
@@ -146,7 +146,7 @@ load();
 // ==================== GAME STATE ====================
 const ST={MENU:0,SHIP:1,SHOP:2,PLAY:3,UPG:4,OVER:5,BOARD:6,EVENT:7};
 let state=ST.MENU,gt=0;
-let P,enemies,eBul,pBul,pickups,wave,waveList,waveTmr,killCnt,coinGot,runCoins;
+let P,enemies,eBul,pBul,pickups,wave,waveList,waveTmr,killCnt,coinGot,runCoins,waveStarted;
 let boss,bossOn,upgChoices,comboN,comboT,maxCombo;
 let evtChoices,currentEvt;
 let totalUpgCount;
@@ -177,8 +177,10 @@ function initPlayer(){
 
 function initGame(){
   initPlayer();enemies=[];eBul=[];pBul=[];pickups=[];parts=[];floats=[];
-  wave=0;waveList=[];waveTmr=60;killCnt=0;coinGot=0;boss=null;bossOn=false;
-  comboN=0;comboT=0;maxCombo=0;runCoins=0;totalUpgCount=0;sv.runs++;store();
+  wave=0;waveList=[];waveTmr=0;killCnt=0;coinGot=0;boss=null;bossOn=false;
+  comboN=0;comboT=0;maxCombo=0;runCoins=0;totalUpgCount=0;
+  waveStarted=false;sv.runs++;store();
+  spawnWave();waveStarted=true;
 }
 
 // ==================== SPAWNING ====================
@@ -260,7 +262,7 @@ function selEvent(e){
   e.fx();
   ftext(W/2,H/2,e.icon+' '+e.name,'#ff0',20);
   sfx('upg');
-  state=ST.PLAY;waveTmr=30;
+  state=ST.PLAY;spawnWave();waveStarted=true;
 }
 
 // ==================== PLAYER ====================
@@ -464,8 +466,10 @@ function updWaves(){
     for(const w of waveList){if(!w.done&&--w.delay<=0){w.done=true;spawnE(w.type)}}
     waveList=waveList.filter(w=>!w.done);
   }
-  if(waveList.length===0&&enemies.length===0){
-    if(--waveTmr<=0)offerUpg();
+  // Only offer upgrade after a wave has been fully cleared
+  if(waveStarted&&waveList.length===0&&enemies.length===0){
+    waveStarted=false;
+    offerUpg();
   }
 }
 
@@ -517,31 +521,76 @@ function recalc(){
   P.hp=Math.min(P.hp,P.maxHP);P.sh=Math.min(P.sh,P.maxSh);
 }
 
-function startNext(){state=ST.PLAY;waveTmr=30;comboN=0}
+function startNext(){state=ST.PLAY;comboN=0;spawnWave();waveStarted=true;}
 
 // ==================== DRAWING ====================
 function drwShip(x,y,w,h,col,isP){
-  X.fillStyle=col;X.beginPath();
-  if(isP){X.moveTo(x,y-h/2);X.lineTo(x-w/2,y+h/2);X.lineTo(x-w/6,y+h/4);X.lineTo(x+w/6,y+h/4);X.lineTo(x+w/2,y+h/2)}
-  else{X.moveTo(x,y+h/2);X.lineTo(x-w/2,y-h/2);X.lineTo(x-w/4,y-h/4);X.lineTo(x+w/4,y-h/4);X.lineTo(x+w/2,y-h/2)}
+  // Glow
+  X.shadowColor=col;X.shadowBlur=18;
+  // Main body gradient
+  const g=X.createLinearGradient(x,y-h/2,x,y+h/2);
+  if(isP){g.addColorStop(0,col);g.addColorStop(1,'#fff');}
+  else{g.addColorStop(0,'#fff');g.addColorStop(1,col);}
+  X.fillStyle=g;X.beginPath();
+  if(isP){
+    X.moveTo(x,y-h/2);
+    X.lineTo(x-w*.45,y+h*.35);
+    X.lineTo(x-w*.15,y+h*.45);
+    X.lineTo(x+w*.15,y+h*.45);
+    X.lineTo(x+w*.45,y+h*.35);
+  }else{
+    X.moveTo(x,y+h/2);
+    X.lineTo(x-w*.45,y-h*.35);
+    X.lineTo(x-w*.2,y-h*.2);
+    X.lineTo(x+w*.2,y-h*.2);
+    X.lineTo(x+w*.45,y-h*.35);
+  }
   X.closePath();X.fill();
-  X.shadowColor=col;X.shadowBlur=12;X.fill();X.shadowBlur=0;
+  // Wing accents
+  X.fillStyle=col;X.globalAlpha=.5;
+  if(isP){
+    X.fillRect(x-w*.55,y+h*.1,w*.18,h*.35);
+    X.fillRect(x+w*.37,y+h*.1,w*.18,h*.35);
+  }else{
+    X.fillRect(x-w*.55,y-h*.45,w*.18,h*.35);
+    X.fillRect(x+w*.37,y-h*.45,w*.18,h*.35);
+  }
+  X.globalAlpha=1;
+  X.shadowBlur=0;
 }
 
 function drwPlayer(){
   if(P.invTmr>0&&P.invTmr%4<2)return;
-  // Engine flame
-  X.fillStyle='#48f';X.globalAlpha=.6+Math.sin(gt*.2)*.3;
-  X.beginPath();X.moveTo(P.x-5,P.y+P.h/2-5);X.lineTo(P.x,P.y+P.h/2+8+rng(0,5));X.lineTo(P.x+5,P.y+P.h/2-5);X.closePath();X.fill();X.globalAlpha=1;
+  // Engine flame (gradient)
+  const fl=rng(8,14);
+  const fg=X.createLinearGradient(P.x,P.y+P.h/2-5,P.x,P.y+P.h/2+fl);
+  fg.addColorStop(0,'#0ef');fg.addColorStop(.4,'#48f');fg.addColorStop(1,'transparent');
+  X.fillStyle=fg;X.globalAlpha=.7+Math.sin(gt*.3)*.2;
+  X.beginPath();X.moveTo(P.x-6,P.y+P.h/2-5);X.lineTo(P.x,P.y+P.h/2+fl);X.lineTo(P.x+6,P.y+P.h/2-5);X.closePath();X.fill();
+  // Side flames
+  X.globalAlpha=.4;X.beginPath();X.moveTo(P.x-P.w*.35,P.y+P.h*.3);X.lineTo(P.x-P.w*.3,P.y+P.h*.3+fl*.5);X.lineTo(P.x-P.w*.25,P.y+P.h*.3);X.fill();
+  X.beginPath();X.moveTo(P.x+P.w*.25,P.y+P.h*.3);X.lineTo(P.x+P.w*.3,P.y+P.h*.3+fl*.5);X.lineTo(P.x+P.w*.35,P.y+P.h*.3);X.fill();
+  X.globalAlpha=1;
   drwShip(P.x,P.y,P.w,P.h,P.color,true);
+  // Cockpit highlight
+  X.fillStyle='#fff';X.globalAlpha=.6;
+  X.beginPath();X.ellipse(P.x,P.y-P.h*.1,P.w*.12,P.h*.15,0,0,Math.PI*2);X.fill();
+  X.globalAlpha=1;
   // Drones
   for(let i=0;i<P.drones;i++){
     const a=P.droneAng+Math.PI*2/P.drones*i,dx=P.x+Math.cos(a)*50,dy=P.y+Math.sin(a)*50;
-    X.fillStyle='#4af';X.beginPath();X.arc(dx,dy,6,0,Math.PI*2);X.fill();
-    X.shadowColor='#4af';X.shadowBlur=10;X.fill();X.shadowBlur=0;
+    X.fillStyle='#4af';X.shadowColor='#4af';X.shadowBlur=14;
+    X.beginPath();X.arc(dx,dy,7,0,Math.PI*2);X.fill();
+    X.fillStyle='#fff';X.globalAlpha=.5;X.beginPath();X.arc(dx,dy,3,0,Math.PI*2);X.fill();X.globalAlpha=1;
+    X.shadowBlur=0;
   }
-  // Shield
-  if(P.maxSh>0){X.strokeStyle=`rgba(80,140,255,${.3+.2*Math.sin(gt*.1)})`;X.lineWidth=2;X.beginPath();X.arc(P.x,P.y,28,0,Math.PI*2*(P.sh/P.maxSh));X.stroke();X.lineWidth=1}
+  // Shield arc
+  if(P.maxSh>0){
+    const sa=.3+.2*Math.sin(gt*.1);
+    X.strokeStyle=`rgba(80,180,255,${sa})`;X.lineWidth=3;X.shadowColor='#48f';X.shadowBlur=10;
+    X.beginPath();X.arc(P.x,P.y,30,0,Math.PI*2*(P.sh/P.maxSh));X.stroke();
+    X.shadowBlur=0;X.lineWidth=1;
+  }
 }
 
 function drwEnemies(){
@@ -558,24 +607,59 @@ function drwEnemies(){
 
 function drwBoss(b){
   const col=b.hf>0?'#fff':b.color;
-  X.fillStyle=col;X.beginPath();
+  // Body with gradient
+  const bg=X.createRadialGradient(b.x,b.y,0,b.x,b.y,b.w);
+  bg.addColorStop(0,'#fff');bg.addColorStop(.4,col);bg.addColorStop(1,b.color+'66');
+  X.fillStyle=bg;X.beginPath();
   X.moveTo(b.x,b.y-b.h/2);X.lineTo(b.x-b.w/2,b.y);X.lineTo(b.x-b.w*.7,b.y+b.h/2);
   X.lineTo(b.x-b.w/4,b.y+b.h/3);X.lineTo(b.x,b.y+b.h/2);
   X.lineTo(b.x+b.w/4,b.y+b.h/3);X.lineTo(b.x+b.w*.7,b.y+b.h/2);X.lineTo(b.x+b.w/2,b.y);
-  X.closePath();X.fill();X.shadowColor=b.color;X.shadowBlur=18;X.fill();X.shadowBlur=0;
-  // Eyes
-  X.fillStyle='#ff0';X.beginPath();X.arc(b.x-14,b.y-5,5,0,Math.PI*2);X.arc(b.x+14,b.y-5,5,0,Math.PI*2);X.fill();
-  // HP bar
-  X.fillStyle='#200';X.fillRect(30,20,W-60,12);X.fillStyle=b.color;X.fillRect(30,20,(W-60)*(b.hp/b.mhp),12);
-  X.strokeStyle='#666';X.strokeRect(30,20,W-60,12);
+  X.closePath();X.fill();
+  X.shadowColor=b.color;X.shadowBlur=25;X.fill();X.shadowBlur=0;
+  // Armor plates
+  X.strokeStyle=b.color;X.globalAlpha=.4;X.lineWidth=2;
+  X.beginPath();X.moveTo(b.x-b.w*.3,b.y-b.h*.2);X.lineTo(b.x-b.w*.5,b.y+b.h*.2);X.stroke();
+  X.beginPath();X.moveTo(b.x+b.w*.3,b.y-b.h*.2);X.lineTo(b.x+b.w*.5,b.y+b.h*.2);X.stroke();
+  X.globalAlpha=1;X.lineWidth=1;
+  // Eyes with glow
+  X.fillStyle='#ff0';X.shadowColor='#ff0';X.shadowBlur=12;
+  X.beginPath();X.arc(b.x-14,b.y-5,6,0,Math.PI*2);X.fill();
+  X.beginPath();X.arc(b.x+14,b.y-5,6,0,Math.PI*2);X.fill();
+  X.fillStyle='#fff';X.beginPath();X.arc(b.x-14,b.y-5,2,0,Math.PI*2);X.fill();
+  X.beginPath();X.arc(b.x+14,b.y-5,2,0,Math.PI*2);X.fill();
+  X.shadowBlur=0;
+  // HP bar with gradient
+  const hpR=b.hp/b.mhp;
+  X.fillStyle='#111';X.fillRect(30,20,W-60,14);
+  const hg=X.createLinearGradient(30,0,30+(W-60)*hpR,0);
+  hg.addColorStop(0,b.color);hg.addColorStop(1,'#fff');
+  X.fillStyle=hg;X.fillRect(31,21,(W-62)*hpR,12);
+  X.strokeStyle='#555';X.strokeRect(30,20,W-60,14);
+  // Phase indicator
   X.fillStyle=b.color;X.font='bold 12px "Courier New",monospace';X.textAlign='center';
+  X.shadowColor=b.color;X.shadowBlur=8;
   const ph=['I','II','III'][b.phase];
   X.fillText(`${b.name} [${ph}] - 波次 ${wave}`,W/2,16);
+  X.shadowBlur=0;
 }
 
 function drwBullets(){
-  for(const b of pBul){X.fillStyle=P.critCh>.3?'#ff4':b.frost>0?'#8cf':'#0ef';X.fillRect(b.x-b.w/2,b.y-b.h/2,b.w,b.h)}
-  for(const b of eBul){X.fillStyle='#f44';X.beginPath();X.arc(b.x,b.y,b.w/2,0,Math.PI*2);X.fill();X.shadowColor='#f44';X.shadowBlur=5;X.fill();X.shadowBlur=0}
+  // Player bullets with glow trail
+  for(const b of pBul){
+    const bc=P.critCh>.3?'#ff4':b.frost>0?'#8cf':'#0ef';
+    X.fillStyle=bc;X.shadowColor=bc;X.shadowBlur=10;
+    // Trail
+    X.globalAlpha=.3;X.fillRect(b.x-b.w/2,b.y-b.h/2+6,b.w,b.h+4);
+    X.globalAlpha=1;X.fillRect(b.x-b.w/2,b.y-b.h/2,b.w,b.h);
+    X.shadowBlur=0;
+  }
+  // Enemy bullets with glow
+  for(const b of eBul){
+    X.fillStyle='#f44';X.shadowColor='#f44';X.shadowBlur=8;
+    X.beginPath();X.arc(b.x,b.y,b.w/2,0,Math.PI*2);X.fill();
+    X.fillStyle='#faa';X.beginPath();X.arc(b.x,b.y,b.w/4,0,Math.PI*2);X.fill();
+    X.shadowBlur=0;
+  }
 }
 
 function drwPickups(){
