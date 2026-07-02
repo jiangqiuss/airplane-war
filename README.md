@@ -15,7 +15,7 @@
 
 直接在浏览器中打开 `index.html` 即可游玩。
 
-或者访问 GitHub Pages 在线体验：[点击这里](https://你的用户名.github.io/飞机大战/)
+或者访问 GitHub Pages 在线体验：[点击这里](https://jiangqiuss.github.io/airplane-war/)
 
 ## 🕹️ 操作方式
 
