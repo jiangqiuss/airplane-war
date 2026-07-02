@@ -141,8 +141,34 @@ loadBoard();
 function defSave(){return{coins:0,runs:0,bestW:0,bestK:0,totalKills:0,sl:{},ships:['falcon'],sel:'falcon'}}
 let sv;
 function load(){try{sv=JSON.parse(localStorage.getItem('sr3'))||defSave()}catch(e){sv=defSave()}const d=defSave();for(const k in d)if(!(k in sv))sv[k]=d[k]}
-function store(){localStorage.setItem('sr3',JSON.stringify(sv))}
+function store(){try{localStorage.setItem('sr3',JSON.stringify(sv))}catch(e){}}
 load();
+
+// Export/Import save code
+function exportSave(){
+  sv.coins+=runCoins;runCoins=0;store();
+  return btoa(unescape(encodeURIComponent(JSON.stringify(sv))));
+}
+function importSave(code){
+  try{
+    const data=JSON.parse(decodeURIComponent(escape(atob(code))));
+    if(data&&typeof data.coins==='number'){
+      sv=data;store();return true;
+    }
+  }catch(e){}
+  return false;
+}
+
+// Save on page close/refresh
+window.addEventListener('beforeunload',()=>{
+  sv.coins+=runCoins;runCoins=0;
+  store();
+});
+
+// Save on visibility change (tab switch, minimize)
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){sv.coins+=runCoins;runCoins=0;store()}
+});
 
 // ==================== GAME STATE ====================
 const ST={MENU:0,SHIP:1,SHOP:2,PLAY:3,UPG:4,OVER:5,BOARD:6,EVENT:7};
@@ -448,7 +474,7 @@ function dmgP(dmg){
 }
 
 function collect(pk){
-  if(pk.type==='coin'){const v=Math.ceil((1+wave*.5)*(1+P.coinMul));runCoins+=v;coinGot+=v;ftext(pk.x,pk.y,'+'+v+'💰','#fa0',12);sfx('coin')}
+  if(pk.type==='coin'){const v=Math.ceil((1+wave*.5)*(1+P.coinMul));runCoins+=v;coinGot+=v;ftext(pk.x,pk.y,'+'+v+'💰','#fa0',12);sfx('coin');sv.coins+=runCoins;runCoins=0;store()}
   else if(pk.type==='hp'){const h=15+wave*2;P.hp=Math.min(P.maxHP,P.hp+h);ftext(pk.x,pk.y,'+'+h+'❤','#4f4',14);sfx('heal')}
   else if(pk.type==='bomb'){P.bombs++;ftext(pk.x,pk.y,'+1💣','#ff0',14);sfx('coin')}
 }
@@ -816,14 +842,24 @@ function drwBtn(x,y,w,h,txt,col,cb,sz=14){
 function drwMenu(){
   // Title
   X.fillStyle='#0ef';X.font='bold 36px "Courier New"';X.textAlign='center';
-  X.shadowColor='#0ef';X.shadowBlur=30;X.fillText('星际掠食者',W/2,140);X.shadowBlur=0;
-  X.fillStyle='#667';X.font='13px "Courier New"';X.fillText('R O G U E L I K E   飞机大战',W/2,170);
+  X.shadowColor='#0ef';X.shadowBlur=30;X.fillText('星际掠食者',W/2,120);X.shadowBlur=0;
+  X.fillStyle='#667';X.font='13px "Courier New"';X.fillText('R O G U E L I K E   飞机大战',W/2,150);
   // Stats
-  X.fillStyle='#555';X.font='11px "Courier New"';X.fillText(`总游玩: ${sv.runs}  最高波次: ${sv.bestW}  总击杀: ${sv.totalKills}  金币: ${sv.coins}`,W/2,210);
+  X.fillStyle='#555';X.font='11px "Courier New"';X.fillText(`总游玩: ${sv.runs}  最高波次: ${sv.bestW}  总击杀: ${sv.totalKills}  金币: ${sv.coins}`,W/2,185);
   // Buttons
-  drwBtn(W/2-90,260,180,48,'🚀 开始游戏','#0ef',()=>state=ST.SHIP);
-  drwBtn(W/2-90,325,180,48,'🛒 永久商店','#4f4',()=>state=ST.SHOP);
-  drwBtn(W/2-90,390,180,48,'🏆 排行榜','#fa0',()=>state=ST.BOARD);
+  drwBtn(W/2-90,220,180,48,'🚀 开始游戏','#0ef',()=>state=ST.SHIP);
+  drwBtn(W/2-90,285,180,48,'🛒 永久商店','#4f4',()=>state=ST.SHOP);
+  drwBtn(W/2-90,350,180,48,'🏆 排行榜','#fa0',()=>state=ST.BOARD);
+  // Save/Load buttons
+  drwBtn(W/2-90,420,85,36,'📤 导出存档','#88f',()=>{
+    const code=exportSave();
+    prompt('复制此存档码（可在其他设备导入）:',code);
+  },11);
+  drwBtn(W/2+5,420,85,36,'📥 导入存档','#88f',()=>{
+    const code=prompt('粘贴存档码:');
+    if(code&&importSave(code)){alert('导入成功！金币: '+sv.coins)}
+    else if(code){alert('存档码无效')}
+  },11);
   // Credits
   X.fillStyle='#333';X.font='10px "Courier New"';X.fillText('WASD/方向键移动 · 空格炸弹 · 鼠标/触屏操作',W/2,H-30);
 }
