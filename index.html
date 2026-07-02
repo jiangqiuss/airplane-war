@@ -694,6 +694,9 @@ function drwPickups(){
 }
 
 function drwHUD(){
+  // Debug info
+  X.fillStyle='#0f0';X.font='9px "Courier New"';X.textAlign='right';
+  X.fillText(`phase:${gamePhase} state:${state} w:${wave} wl:${waveList.length} en:${enemies.length} st:${stuckTimer}`,W-5,H-5);
   // HP bar
   X.fillStyle='#200';X.fillRect(10,H-30,140,10);
   X.fillStyle='#f44';X.fillRect(10,H-30,140*Math.max(0,P.hp/P.maxHP),10);
@@ -722,6 +725,9 @@ function drwHUD(){
 // ==================== UPGRADE SCREEN ====================
 function drwUpgScreen(){
   X.fillStyle='rgba(0,0,0,.75)';X.fillRect(0,0,W,H);
+  // Debug
+  X.fillStyle='#0f0';X.font='10px "Courier New"';X.textAlign='center';
+  X.fillText(`DEBUG: phase=${gamePhase} choices=${upgChoices?upgChoices.length:'null'} st=${stuckTimer}`,W/2,50);
   X.fillStyle='#fff';X.font='bold 24px "Courier New"';X.textAlign='center';X.fillText('选择强化',W/2,90);
   X.fillStyle='#888';X.font='12px "Courier New"';X.fillText(`波次 ${wave} 完成!  选择一项强化`,W/2,115);
   const cw=Math.min(130,Math.floor((W-40)/upgChoices.length)-10),ch=200,gap=10;
